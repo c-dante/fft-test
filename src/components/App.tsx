@@ -24,9 +24,6 @@ const test = (): void => {
 
 	// Run transformations
 	fftRunner.transform();
-	console.debug(heap);
-	console.debug(fourier.dft([1, 0, 1, 0, 1, 0], [0, 0, 0, 0, 0, 0]));
-	console.debug(fourier.idft(...fourier.dft([1, 0, 1, 0, 1, 0], [0, 0, 0, 0, 0, 0])));
 }
 
 const magPlot = (
@@ -129,8 +126,22 @@ export const App = (): JSX.Element => {
 
 	const getWeird = useCallback((e) => {
 		if (canvas && weird) {
+			e.preventDefault();
 			const mouseX = e.clientX - canvas.offsetLeft;
 			const mouseY = e.clientY - canvas.offsetTop;
+			const ctx2d = canvas.getContext('2d');
+			if (ctx2d) {
+				applyWeird(ctx2d, canvas.width, canvas.height, mouseX, mouseY);
+			}
+		}
+	}, [canvas, weird]);
+
+	const touchWeird = useCallback((e) => {
+		e.preventDefault();
+		const t = e.touches[0];
+		if (canvas && weird && t) {
+			const mouseX = t.clientX - canvas.offsetLeft;
+			const mouseY = t.clientY - canvas.offsetTop;
 			const ctx2d = canvas.getContext('2d');
 			if (ctx2d) {
 				applyWeird(ctx2d, canvas.width, canvas.height, mouseX, mouseY);
@@ -141,7 +152,7 @@ export const App = (): JSX.Element => {
 	return (
 		<>
 			<div>
-				<canvas ref={onCanvas} onMouseMove={getWeird} />
+				<canvas ref={onCanvas} onMouseMove={getWeird} onTouchMove={touchWeird} />
 				<button onClick={() => setWeird(!weird)}>
 					{weird ? 'enough' : 'get weird'}
 				</button>

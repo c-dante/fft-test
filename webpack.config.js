@@ -157,6 +157,7 @@ module.exports = ({
 		},
 		// Development settings
 		devServer: {
+			host: '0.0.0.0',
 			publicPath: '/',
 			hot: true,
 			// This is configured to allow client side cors request to some other server
