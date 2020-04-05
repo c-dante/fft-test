@@ -52,8 +52,6 @@ const signalPlot = (offset: number, scale: number, signal: number[]): Path2D => 
 
 const render = (canvas: HTMLCanvasElement): void => {
 	console.debug('!', canvas);
-	canvas.setAttribute('width', `${512}px`);
-	canvas.setAttribute('height', `${512}px`);
 
 	const ctx2d = canvas.getContext('2d');
 	if (ctx2d) {
@@ -112,17 +110,30 @@ const applyWeird = fp.throttle(50, (
 	console.timeEnd('get weird');
 });
 
+const closestPowerOfTwo = (n: number): number => {
+	let i = 1 << 15; // this is for a screen size, assuming not working for 32768 pixel width
+	while (i > 64 && i > n) { // low bound of 64 pixels
+		i = i >> 1;
+	}
+	return i;
+}
+
 export const App = (): JSX.Element => {
 	const [canvas, setCanvas] = useState<HTMLCanvasElement>();
+	const [fitSize, setFitSize] = useState<number>();
 	const [weird, setWeird] = useState(false);
 
 	const onCanvas = useCallback(setCanvas, [setCanvas]);
 
 	useEffect(() => {
 		if (canvas) {
+			if (canvas.width !== fitSize) {
+				canvas.setAttribute('width', `${fitSize}px`);
+				canvas.setAttribute('height', `${fitSize}px`);
+			}
 			render(canvas);
 		}
-	}, [canvas]);
+	}, [canvas, fitSize]);
 
 	const getWeird = useCallback((e) => {
 		if (canvas && weird) {
@@ -134,7 +145,7 @@ export const App = (): JSX.Element => {
 				applyWeird(ctx2d, canvas.width, canvas.height, mouseX, mouseY);
 			}
 		}
-	}, [canvas, weird]);
+	}, [canvas, fitSize, weird]);
 
 	const touchWeird = useCallback((e) => {
 		e.preventDefault();
@@ -147,16 +158,34 @@ export const App = (): JSX.Element => {
 				applyWeird(ctx2d, canvas.width, canvas.height, mouseX, mouseY);
 			}
 		}
-	}, [canvas, weird]);
+	}, [canvas, fitSize, weird]);
+
+	useEffect(() => {
+		setFitSize(
+			closestPowerOfTwo(
+				Math.min(document.body.clientWidth, document.body.clientHeight)
+			)
+		);
+		window.addEventListener('resize', (e) => {
+			setFitSize(
+				closestPowerOfTwo(
+					Math.min(document.body.clientWidth, document.body.clientHeight)
+				)
+			);
+		})
+	}, [setFitSize]);
 
 	return (
-		<>
-			<div>
-				<canvas ref={onCanvas} onMouseMove={getWeird} onTouchMove={touchWeird} />
-				<button onClick={() => setWeird(!weird)}>
-					{weird ? 'enough' : 'get weird'}
-				</button>
-			</div>
-		</>
+		<div style={{
+			display: 'flex',
+			flexDirection: 'column',
+			alignItems: 'center',
+		}}>
+			<canvas ref={onCanvas} onMouseMove={getWeird} onTouchMove={touchWeird} />
+			<div style={{ height: '1em' }} />
+			<button onClick={() => setWeird(!weird)}>
+				{weird ? 'enough' : 'get weird'}
+			</button>
+		</div>
 	);
 };

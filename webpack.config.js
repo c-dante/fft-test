@@ -53,7 +53,7 @@ const basePlugins = [
 		title: 'App',
 		chunksSortMode: 'dependency',
 		meta: {
-			'viewport': 'minimum-scale=1, initial-scale=1, width=device-width, shrink-to-fit=no',
+			'viewport': 'minimum-scale=1, initial-scale=1, width=device-width, shrink-to-fit=no, user-scalable=no',
 			'mobile-web-app-capable': 'yes',
 		},
 		excludeChunks: ['app'],
