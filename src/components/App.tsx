@@ -18,7 +18,7 @@ const getEventPosition = (e: any): Point => {
 	return { x: e.clientX, y: e.clientY };
 };
 
-const getElementPosition = (elt: HTMLElement): Point => {
+const getElementPosition = (elt: any): Point => {
 	const rect = elt.getBoundingClientRect();
 	return { x: rect.left, y: rect.top };
 };
@@ -220,10 +220,6 @@ export const App = (): JSX.Element => {
 		};
 	}, [setFitSize]);
 
-	const loadImage = (e) => {
-		console.debug(e.target.value);
-	}
-
 	return (
 		<div style={{
 			display: 'flex',
@@ -250,7 +246,7 @@ export const App = (): JSX.Element => {
 	);
 };
 
-const DragWindow = ({ children }): JSX.Element => {
+const DragWindow = ({ children }: any): JSX.Element => {
 	const eltRef = useRef();
 	const [dragging, setDragging] = useState<{ origin: Point; start: Point }>();
 	const [hide, setHide] = useState(false);
@@ -327,11 +323,11 @@ const DragWindow = ({ children }): JSX.Element => {
 const MemoDragWindow = memo(DragWindow);
 
 
-const Image = (width): JSX.Element => {
+const Image = (): JSX.Element => {
 	const [canvas, setCanvas] = useState<HTMLCanvasElement>();
 	const [file, setFile] = useState<File>();
 	const [image, setImage] = useState<ImageBitmap>();
-	const [error, setError] = useState();
+	const [error, setError] = useState<string>();
 
 	// Ensure we clean up if we change images
 	useEffect(() => {
@@ -380,7 +376,7 @@ const Image = (width): JSX.Element => {
 			<canvas ref={onCanvas} />
 			<input
 				onChange={(e) => {
-					setFile(e.target.files[0]);
+					setFile(e?.target?.files?.[0]);
 				}}
 				type='file'
 				accept='image/*'
