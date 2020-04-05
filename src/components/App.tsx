@@ -1,10 +1,151 @@
-import React from 'react';
-import { Counter } from './Counter';
-import { Hello } from './Hello';
+import React, { useState, useCallback, useEffect } from 'react';
+import fourier from 'fourier';
+import fp from 'lodash/fp';
 
-export const App = (): JSX.Element => (
-	<>
-		<Hello name={ 'react-webpack-typescript-babel' } />
-		<Counter />
-	</>
-);
+// const arr = new Array()
+const stdlib = {
+	Math: Math,
+	Float32Array: Float32Array,
+	Float64Array: Float64Array,
+};
+
+const test = (): void => {
+	console.log(fourier);
+
+	// Create heap for the fft data and twiddle factors
+	const heap = fourier.custom.alloc(16, 3);
+
+	// Create instance of FFT runner
+	const fftRunner = fourier.custom.fft_f64_16_asm(stdlib, null, heap);
+	console.debug(fftRunner);
+
+	// Init twiddle factors
+	fftRunner.init();
+
+	// Run transformations
+	fftRunner.transform();
+	console.debug(heap);
+	console.debug(fourier.dft([1, 0, 1, 0, 1, 0], [0, 0, 0, 0, 0, 0]));
+	console.debug(fourier.idft(...fourier.dft([1, 0, 1, 0, 1, 0], [0, 0, 0, 0, 0, 0])));
+}
+
+const magPlot = (
+	offset: number,
+	scale: number,
+	realArr: number[],
+	imaginaryArr: number[],
+): Path2D => {
+	const p2 = new Path2D();
+	p2.moveTo(offset, offset);
+	realArr.forEach((real, x) => {
+		const mag = Math.sqrt((real * real) + (imaginaryArr[x] * imaginaryArr[x]));
+		p2.lineTo(offset + x * scale, offset + mag * scale);
+	});
+	return p2;
+};
+
+const signalPlot = (offset: number, scale: number, signal: number[]): Path2D => {
+	const path = new Path2D();
+	path.moveTo(offset, offset);
+	signal.forEach((y, x) => {
+		path.lineTo(offset + x * scale, offset + y * scale);
+	});
+	return path;
+};
+
+const render = (canvas: HTMLCanvasElement): void => {
+	console.debug('!', canvas);
+	canvas.setAttribute('width', `${512}px`);
+	canvas.setAttribute('height', `${512}px`);
+
+	const ctx2d = canvas.getContext('2d');
+	if (ctx2d) {
+		ctx2d.fillStyle = 'black';
+		ctx2d.fillRect(0, 0, canvas.width, canvas.height);
+
+		const scale = 5;
+
+		// Draw our signal
+		const signal = new Array(64).fill(0).map((x, i) => Math.sin(i * (Math.PI / 8)));
+		ctx2d.strokeStyle = 'white';
+		ctx2d.stroke(signalPlot(10, scale, signal));
+
+		const [rfft, ifft] = fourier.dft(signal, (new Array(signal.length)).fill(0));
+		console.debug({ rfft, ifft });
+		ctx2d.strokeStyle = 'white';
+		ctx2d.stroke(magPlot(10, scale, rfft, ifft));
+	}
+};
+
+const calcWeird = (
+	data: Uint8ClampedArray,
+	width: number,
+	height: number,
+	cx: number,
+	cy: number,
+): void => {
+	let i = 0;
+	// Distance from center
+	const fact = Math.PI / 64;
+	for (let x = 0; x < width; x++) {
+		const localX = x - cy;
+		const a = Math.sin(fact * localX) * Math.sin(fact * localX);
+		for (let y = 0; y < height; y++) {
+			const localY = y - cx;
+			const b = Math.cos(fact * localY) * Math.cos(fact * localY);
+			data[i++] = a * 0xFF; // R
+			data[i++] = b * 0xFF; // G
+			i++; //B
+			i++; //A
+		}
+	}
+};
+
+const applyWeird = fp.throttle(50, (
+	ctx2d: CanvasRenderingContext2D,
+	width: number,
+	height: number,
+	mouseX: number,
+	mouseY: number,
+) => {
+	console.time('get weird');
+	const imageData = ctx2d.getImageData(0, 0, width, height);
+	calcWeird(imageData.data, width, height, mouseX, mouseY);
+	ctx2d.putImageData(imageData, 0, 0);
+	console.timeEnd('get weird');
+});
+
+export const App = (): JSX.Element => {
+	const [canvas, setCanvas] = useState<HTMLCanvasElement>();
+	const [weird, setWeird] = useState(false);
+
+	const onCanvas = useCallback(setCanvas, [setCanvas]);
+
+	useEffect(() => {
+		if (canvas) {
+			render(canvas);
+		}
+	}, [canvas]);
+
+	const getWeird = useCallback((e) => {
+		if (canvas && weird) {
+			const mouseX = e.clientX - canvas.offsetLeft;
+			const mouseY = e.clientY - canvas.offsetTop;
+			const ctx2d = canvas.getContext('2d');
+			if (ctx2d) {
+				applyWeird(ctx2d, canvas.width, canvas.height, mouseX, mouseY);
+			}
+		}
+	}, [canvas, weird]);
+
+	return (
+		<>
+			<div>
+				<canvas ref={onCanvas} onMouseMove={getWeird} />
+				<button onClick={() => setWeird(!weird)}>
+					{weird ? 'enough' : 'get weird'}
+				</button>
+			</div>
+		</>
+	);
+};
