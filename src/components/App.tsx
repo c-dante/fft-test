@@ -1,8 +1,16 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import fourier from 'fourier';
 import fp from 'lodash/fp';
-import { MemoImage } from './image';
+import { MemoImageSelect } from './image';
 import { MemoDragWindow } from './dragWindow';
+
+const closestPowerOfTwo = (n: number): number => {
+	let i = 1 << 15; // this is for a screen size, assuming not working for 32768 pixel width
+	while (i > 64 && i > n) { // low bound of 64 pixels
+		i = i >> 1;
+	}
+	return i;
+}
 
 const test = (): void => {
 	const len = 16;
@@ -28,8 +36,61 @@ const test = (): void => {
 	// Extract back into real/imag
 	fourier.custom.heap2array(new Float64Array(heap), real, len, 0);
 	fourier.custom.heap2array(new Float64Array(heap), imag, len, len);
+};
+
+const splitColor = (rgba: number): void => {
+	const r = rgba & 0xFF;
+	const g = (rgba >> 8) & 0xFF;
+	const b = (rgba >> 16) & 0xFF;
+	const a = (rgba >> 24) & 0xFF;
+	console.debug({r, g, b, a});
+};
+
+const testPixels = (imageData: ImageData, width: number): void => {
+	const len = width * width;
+	const asRgba = new Uint32Array(imageData.data.buffer);
+
+	// Fill in the heap with the pixel data
+	const heap = fourier.custom.alloc(len, 3);
+	const fftRunner = fourier.custom[`fft_f32_${len}_asm`](window, null, heap);
+	fftRunner.init();
+
+	// Fill heap
+	const heapEdit = new Float32Array(heap);
+	asRgba.forEach((pixel, i) => {
+		heapEdit[i] = pixel & 0xFFFFFF;
+		heapEdit[i + len] = 0;
+	});
+
+	// Run transformations
+	fftRunner.transform();
+
+	// Extract back into real/imag
+	const output = new Float32Array(len);
+	const imag = new Float32Array(len);
+	fourier.custom.heap2array(new Float32Array(heap), output, len, 0);
+	fourier.custom.heap2array(new Float32Array(heap), imag, len, len);
+	for (let i = 0; i < output.length; i++) {
+		const mag = Math.sqrt((output[i] * output[i]) + (imag[i] * imag[i]));
+		asRgba[i] = Math.floor(mag) | 0xFF000000;
+	}
+
+	// Now reverse it
+	// output.forEach((pixel, i) => {
+	// 	heapEdit[i] = imag[i];
+	// 	heapEdit[i + len] = pixel;
+	// });
+
+	// fftRunner.transform();
+	// fourier.custom.heap2array(new Float32Array(heap), output, len, 0);
+	// fourier.custom.heap2array(new Float32Array(heap), imag, len, len);
+	// for (let i = 0; i < output.length; i++) {
+	// 	const real = output[i] / len;
+	// 	const im = imag[i] / len;
+	// 	const mag = Math.sqrt(real * real + im * im);
+	// 	asRgba[i] = Math.floor(mag) | 0xFF000000;
+	// }
 }
-test();
 
 const magPlot = (
 	offset: number,
@@ -137,17 +198,10 @@ const applyWeird = fp.throttle(50, (
 	console.timeEnd('get weird');
 });
 
-const closestPowerOfTwo = (n: number): number => {
-	let i = 1 << 15; // this is for a screen size, assuming not working for 32768 pixel width
-	while (i > 64 && i > n) { // low bound of 64 pixels
-		i = i >> 1;
-	}
-	return i;
-}
-
 export const App = (): JSX.Element => {
+	const bufferCanvas = useRef<any>();
 	const [canvas, setCanvas] = useState<HTMLCanvasElement>();
-	const [fitSize, setFitSize] = useState<number>();
+	const [fitSize, setFitSize] = useState<number>(0);
 	const [weird, setWeird] = useState(false);
 
 	const onCanvas = useCallback(canvas => setCanvas(canvas), [setCanvas]);
@@ -208,6 +262,7 @@ export const App = (): JSX.Element => {
 			alignItems: 'center',
 		}}>
 			<canvas ref={onCanvas} onMouseMove={getWeird} onTouchMove={touchWeird} />
+			<canvas ref={bufferCanvas} style={{ display: 'none', position: 'absolute' }} />
 			<div style={{ height: '1em' }} />
 			<div style={{
 				display: 'flex',
@@ -218,10 +273,30 @@ export const App = (): JSX.Element => {
 					<button onClick={() => setWeird(!weird)}>
 						{weird ? 'enough' : 'get weird'}
 					</button>
+					<button>Reverse</button>
 				</div>
 			</div>
-			<MemoDragWindow>
-				<MemoImage />
+			<MemoDragWindow style={{ backgroundColor: 'gainsboro' }}>
+				<MemoImageSelect onImageSelect={(image) => {
+					console.debug(image, bufferCanvas.current);
+					console.time('playground');
+					const buffer = bufferCanvas?.current;
+					if (buffer) {
+						buffer.setAttribute('width', `${fitSize}px`);
+						buffer.setAttribute('height', `${fitSize}px`);
+						const ctx2d = buffer.getContext('2d');
+						if (ctx2d) {
+							ctx2d.drawImage(image, 0, 0);
+							const imageData = ctx2d.getImageData(0, 0, fitSize, fitSize);
+							testPixels(imageData, fitSize);
+							const target = canvas?.getContext('2d');
+							if (target) {
+								target.putImageData(imageData, 0, 0);
+							}
+						}
+					}
+					console.timeEnd('playground');
+				}} />
 			</MemoDragWindow>
 		</div>
 	);

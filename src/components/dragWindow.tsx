@@ -3,11 +3,12 @@ import fp from 'lodash/fp';
 import React, { memo, useRef, useState, useEffect } from 'react';
 import { getElementPosition, getEventPosition, Point } from './domUtil';
 
-type DragWindowProps = {
+export type DragWindowProps = {
 	children: JSX.Element;
+	style?: object;
 };
 
-export const DragWindow = ({ children }: DragWindowProps): JSX.Element => {
+export const DragWindow = ({ children, style }: DragWindowProps): JSX.Element => {
 	const eltRef = useRef<any>();
 	const [dragging, setDragging] = useState<{ origin: Point; start: Point }>();
 	const [hide, setHide] = useState(false);
@@ -53,12 +54,12 @@ export const DragWindow = ({ children }: DragWindowProps): JSX.Element => {
 		<div
 			ref={eltRef}
 			style={{
+				...style,
 				display: 'flex',
 				flexDirection: 'column',
 				position: 'absolute',
 				top: `${position.y}px`,
 				left: `${position.x}px`,
-				backgroundColor: '#000000',
 			}}
 		>
 			<div style={{ flex: '1 0 auto', display: 'flex' }}>
@@ -77,7 +78,11 @@ export const DragWindow = ({ children }: DragWindowProps): JSX.Element => {
 					{hide ? 'Show' : 'Hide'}
 				</button>
 			</div>
-			{!hide && children}
+			<div style={{
+				display: hide ? 'none' : undefined,
+			}}>
+				{children}
+			</div>
 		</div>
 	);
 };
