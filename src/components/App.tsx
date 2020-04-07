@@ -169,7 +169,7 @@ export const App = (): JSX.Element => {
 	const [fitSize, setFitSize] = useState<number>();
 	const [weird, setWeird] = useState(false);
 
-	const onCanvas = useCallback(setCanvas, [setCanvas]);
+	const onCanvas = useCallback(canvas => setCanvas(canvas), [setCanvas]);
 
 	useEffect(() => {
 		if (canvas && (fitSize ?? 0) > 0) {
@@ -247,7 +247,7 @@ export const App = (): JSX.Element => {
 };
 
 const DragWindow = ({ children }: any): JSX.Element => {
-	const eltRef = useRef();
+	const eltRef = useRef<any>();
 	const [dragging, setDragging] = useState<{ origin: Point; start: Point }>();
 	const [hide, setHide] = useState(false);
 	const [position, setPosition] = useState<Point>({ x: 0, y: document.body.clientHeight - 250});
@@ -369,7 +369,7 @@ const Image = (): JSX.Element => {
 		}
 	}, [file]);
 
-	const onCanvas = useCallback(setCanvas, [setCanvas]);
+	const onCanvas = useCallback(c => setCanvas(c), [setCanvas]);
 
 	return (
 		<div>
