@@ -3,14 +3,7 @@ import fourier from 'fourier';
 import fp from 'lodash/fp';
 import { MemoImageSelect } from './image';
 import { MemoDragWindow } from './dragWindow';
-
-const closestPowerOfTwo = (n: number): number => {
-	let i = 1 << 15; // this is for a screen size, assuming not working for 32768 pixel width
-	while (i > 64 && i > n) { // low bound of 64 pixels
-		i = i >> 1;
-	}
-	return i;
-}
+import { closestPowerOfTwo } from './util';
 
 const test = (): void => {
 	const len = 16;
@@ -36,14 +29,6 @@ const test = (): void => {
 	// Extract back into real/imag
 	fourier.custom.heap2array(new Float64Array(heap), real, len, 0);
 	fourier.custom.heap2array(new Float64Array(heap), imag, len, len);
-};
-
-const splitColor = (rgba: number): void => {
-	const r = rgba & 0xFF;
-	const g = (rgba >> 8) & 0xFF;
-	const b = (rgba >> 16) & 0xFF;
-	const a = (rgba >> 24) & 0xFF;
-	console.debug({r, g, b, a});
 };
 
 const testPixels = (imageData: ImageData, width: number): void => {

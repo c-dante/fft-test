@@ -1,17 +1,67 @@
 import fp from 'lodash/fp';
 import React, { memo, useState, useCallback, useEffect } from 'react';
 
+export type ImageInputProps = {
+	onImageSelect?: (image: ImageBitmap) => void;
+	styles?: object;
+};
+
+export const ImageInput = ({
+	onImageSelect = fp.noop,
+}: ImageInputProps): JSX.Element => {
+	const [file, setFile] = useState<File>();
+	const [error, setError] = useState<string>();
+
+	// If we have a new file, try to load the image
+	useEffect(() => {
+		let useResult = true;
+		if (file) {
+			createImageBitmap(file).then(imageBmp => {
+				if (useResult) {
+					onImageSelect(imageBmp);
+				} else {
+					imageBmp.close();
+				}
+			}, error => {
+				console.error(error);
+				setError(JSON.stringify(error));
+			})
+		}
+
+		return () => {
+			useResult = false;
+		}
+	}, [file]);
+
+	return (
+		<div>
+			<input
+				onChange={(e) => {
+					const newFile = e?.target?.files?.[0]
+					if (newFile) {
+						setFile(newFile);
+					}
+				}}
+				type='file'
+				accept='image/*'
+			/>
+			{error && (<pre>{error}</pre>)}
+		</div>
+	);
+};
+
+// ----------
 export type ImageSelectProps = {
 	onImageSelect?: (image: ImageBitmap) => void;
+	styles?: object;
 };
 
 export const ImageSelect = ({
 	onImageSelect = fp.noop,
+	styles = {},
 }: ImageSelectProps): JSX.Element => {
 	const [canvas, setCanvas] = useState<HTMLCanvasElement>();
-	const [file, setFile] = useState<File>();
 	const [image, setImage] = useState<ImageBitmap>();
-	const [error, setError] = useState<string>();
 
 	const canvasWidth = 300;
 	const canvasHeight = 150;
@@ -35,44 +85,17 @@ export const ImageSelect = ({
 		}
 	}, [image, canvas]);
 
-	// If we have a new file, try to load the image
-	useEffect(() => {
-		let useResult = true;
-		if (file) {
-			createImageBitmap(file).then(imageBmp => {
-				if (useResult) {
-					setImage(imageBmp);
-					onImageSelect(imageBmp);
-				} else {
-					imageBmp.close();
-				}
-			}, error => {
-				console.error(error);
-				setError(JSON.stringify(error));
-			})
-		}
-
-		return () => {
-			useResult = false;
-		}
-	}, [file]);
-
 	const onCanvas = useCallback(c => setCanvas(c), [setCanvas]);
 
 	return (
-		<div style={{ display: 'flex', flexDirection: 'column' }}>
-			<canvas ref={onCanvas} width={`${canvasWidth}px`} height={`${canvasHeight}px`} />
-			<input
-				onChange={(e) => {
-					const newFile = e?.target?.files?.[0]
-					if (newFile) {
-						setFile(newFile);
-					}
-				}}
-				type='file'
-				accept='image/*'
-			/>
-			{error && (<pre>{error}</pre>)}
+		<div style={{ display: 'flex', flexDirection: 'column', ...styles }}>
+			<div>
+				<canvas ref={onCanvas} width={`${canvasWidth}px`} height={`${canvasHeight}px`} />
+			</div>
+			<ImageInput onImageSelect={(imageBmp) => {
+				setImage(imageBmp);
+				onImageSelect(imageBmp);
+			}} />
 		</div>
 	);
 };
