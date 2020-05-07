@@ -2,11 +2,20 @@ import React, { useEffect, useState, useRef } from 'react';
 
 import { ImageInput } from './image';
 import { closestPowerOfTwo } from './util';
+import { fftCanvas } from './imageUtil';
 
 type FftImageProps = {
 	size?: number;
 	src?: ImageBitmap;
 };
+
+const applyImage = (canvas: HTMLCanvasElement, src: ImageBitmap, size: number): void => {
+	const ctx2d = canvas.getContext('2d');
+	ctx2d?.clearRect(0, 0, size, size);
+	// @todo: aspect ratio scale down
+	console.debug(src);
+	ctx2d?.drawImage(src, 0, 0, size, size);
+}
 
 const FftImage = ({
 	size = 0,
@@ -20,22 +29,33 @@ const FftImage = ({
 			if (canvas.width !== size) {
 				canvas.setAttribute('width', `${size}px`);
 				canvas.setAttribute('height', `${size}px`);
+
+				if (src) {
+					applyImage(canvas, src, size);
+				}
 			}
 		}
-	}, [canvasRef, size]);
+	}, [canvasRef, size, src]);
 
 	useEffect(() => {
-		const canvas: HTMLCanvasElement = canvasRef.current;
+		const canvas: HTMLCanvasElement | undefined = canvasRef.current;
 		if (canvas && src) {
-			const ctx2d = canvas.getContext('2d');
-			ctx2d?.clearRect(0, 0, size, size);
-			// @todo: aspect ratio scale down
-			ctx2d?.drawImage(src, 0, 0, size, size);
+			applyImage(canvas, src, size);
 		}
 	}, [canvasRef, src, size]);
 
+	const applyFft = (): void => {
+		const canvas: HTMLCanvasElement | undefined = canvasRef.current;
+		if (canvas) {
+			fftCanvas(canvas);
+		}
+	};
+
 	return (
-		<canvas ref={canvasRef} />
+		<div style={{ display: 'flex', flexDirection: 'column' }}>
+			<canvas ref={canvasRef} />
+			<button onClick={applyFft} disabled={!src}>FFT</button>
+		</div>
 	);
 };
 
@@ -78,11 +98,15 @@ export const App = (): JSX.Element => {
 				</div>
 				<div style={{ display: 'flex', flexDirection: 'column', marginLeft: '10px', marginRight: '10px' }}>
 					<button onClick={() => {
-						createImageBitmap(leftImage).then(copy => setRightImage(copy));
-					}}>transfer right -&gt;</button>
+						if (leftImage) {
+							createImageBitmap(leftImage).then(copy => setRightImage(copy));
+						}
+					}} disabled={!leftImage}>transfer right -&gt;</button>
 					<button onClick={() =>{
-						createImageBitmap(rightImage).then(copy => setLeftImage(copy));
-					}}>&lt;- transfer left</button>
+						if (rightImage) {
+							createImageBitmap(rightImage).then(copy => setLeftImage(copy));
+						}
+					}} disabled={!rightImage}>&lt;- transfer left</button>
 				</div>
 				<div>
 					<FftImage size={fitSize} src={rightImage} />
